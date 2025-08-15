@@ -24,14 +24,23 @@ if [ ! -d ".venv" ]; then
 fi
 
 # Install dependencies (uv automatically uses .venv)
-echo "Installing vLLM and dependencies with uv..."
-uv pip install vllm torch transformers accelerate
+echo "Installing dependencies with uv..."
+
+# First install torch and other dependencies
+uv pip install torch transformers accelerate
+
+# Install vLLM in editable mode from current directory
+echo "Installing vLLM in editable mode (Python changes will be reflected immediately)..."
+echo "Note: First install may take time to build C++ extensions..."
+uv pip install -e .
 
 # Run the test (uv automatically uses .venv)
 echo
 echo "Running inference test..."
+echo "Command: uv run python test_inference.py"
 echo "="*50
-uv run python test_inference.py
+# Add verbose flag to uv to see what it's doing
+uv run -v python test_inference.py
 
 echo
 echo "Setup complete! You can now:"
