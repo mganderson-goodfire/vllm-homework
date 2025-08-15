@@ -27,12 +27,7 @@ echo "Base directory: $BASE_DIR"
 echo "========================================="
 echo
 
-# Load necessary modules (adjust for your cluster)
-# Common module names - uncomment/modify as needed:
-# module load cuda/12.1
-# module load cudnn/8.9
-# module load gcc/11.3
-# module load python/3.11
+# No modules needed - CUDA 12.8 is already available at /usr/local/cuda
 
 # Check for CUDA
 echo "Checking CUDA availability..."
@@ -44,33 +39,8 @@ else
 fi
 echo
 
-# Check for uv in multiple locations
-export PATH="$HOME/.local/bin:$BASE_DIR/.local/bin:$PATH"
-
-if ! command -v uv &> /dev/null; then
-    echo "uv not found in PATH, checking common locations..."
-    
-    # Check common locations
-    for UV_PATH in "$HOME/.local/bin/uv" "$BASE_DIR/.local/bin/uv" "/usr/local/bin/uv"; do
-        if [ -x "$UV_PATH" ]; then
-            echo "Found uv at: $UV_PATH"
-            export PATH="$(dirname "$UV_PATH"):$PATH"
-            break
-        fi
-    done
-fi
-
-# Install uv if still not available
-if ! command -v uv &> /dev/null; then
-    echo "Installing uv to $BASE_DIR/.local/bin..."
-    export CARGO_HOME="$BASE_DIR/.cargo"
-    export RUSTUP_HOME="$BASE_DIR/.rustup"
-    curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --no-modify-path
-    export PATH="$BASE_DIR/.local/bin:$PATH"
-    echo "uv installed to: $(which uv)"
-else
-    echo "Using existing uv: $(which uv)"
-fi
+# uv is pre-installed system-wide on this cluster
+echo "Using uv: $(which uv) (version: $(uv --version))"
 
 # Create virtual environment if it doesn't exist
 VENV_DIR="${VLLM_DIR}/.venv"
@@ -92,9 +62,10 @@ echo "This may take 15-30 minutes..."
 echo "Start time: $(date)"
 echo "========================================="
 
-# Set compilation flags for better performance
+# Set compilation flags for H100 GPU (Hopper architecture)
 export MAX_JOBS=${SLURM_CPUS_PER_TASK:-8}
-export TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6;8.9;9.0"  # Adjust for your GPU architecture
+export TORCH_CUDA_ARCH_LIST="9.0"  # H100 Hopper architecture
+export CUDA_HOME="/usr/local/cuda"  # CUDA 12.8 location
 
 # Install in editable mode
 uv pip install -e . --verbose
@@ -122,7 +93,7 @@ print("\nInitializing vLLM with facebook/opt-125m...")
 llm = LLM(
     model="facebook/opt-125m",
     max_model_len=256,
-    gpu_memory_utilization=0.5,
+    gpu_memory_utilization=0.3,  # H100 has 80GB, use less for safety
 )
 
 sampling_params = SamplingParams(temperature=0.8, max_tokens=30)
